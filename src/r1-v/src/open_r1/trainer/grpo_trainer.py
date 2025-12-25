@@ -171,9 +171,11 @@ class Qwen2VLGRPOTrainer(Trainer):
             model_name = model_name.split("/")[-1]
             args = GRPOConfig(f"{model_name}-GRPO")
             
-
+        # import pdb; pdb.set_trace() 
+        
         # Models
         # Trained model
+        # 加载多模态大模型
         model_init_kwargs = args.model_init_kwargs or {}
         model_init_kwargs["attn_implementation"] = attn_implementation
         if isinstance(model, str):
@@ -216,6 +218,7 @@ class Qwen2VLGRPOTrainer(Trainer):
 
         #self.ref_model = None
         # Reference model
+        # 参考模型（grpo中需要一个reference model来计算KL散度）
         if is_deepspeed_zero3_enabled():
             if "Qwen2-VL" in model_id:
                 self.ref_model = Qwen2VLForConditionalGeneration.from_pretrained(model_id, **model_init_kwargs)
@@ -235,6 +238,7 @@ class Qwen2VLGRPOTrainer(Trainer):
             self.ref_model = None
 
         # Processing class
+        # 数据处理类(tokenizer + image processor)
         if processing_class is None:
             if "Qwen2-VL" in model_id or "Qwen2.5-VL" in model_id or "Aria" in model_id or True:
                 processing_class = AutoProcessor.from_pretrained(model_id)
@@ -249,6 +253,7 @@ class Qwen2VLGRPOTrainer(Trainer):
                 pad_token_id = processing_class.pad_token_id
 
         # Reward functions
+        # 奖励
         if not isinstance(reward_funcs, list):
             reward_funcs = [reward_funcs]
         for i, reward_func in enumerate(reward_funcs):
@@ -284,6 +289,8 @@ class Qwen2VLGRPOTrainer(Trainer):
             return features
 
         # Training arguments
+        # generation config和temporal/len control，自定义生成三个生成配置
+        # self.generation_config正常grpo采样配置；self.shuffled_generation_config只在temporal模式下用；self.dummy_generation_config在没有视频时占位用
         self.max_prompt_length = args.max_prompt_length
         self.max_completion_length = args.max_completion_length  # = |o_i| in the GRPO paper
         self.num_generations = args.num_generations  # = G in the GRPO paper
@@ -354,6 +361,8 @@ class Qwen2VLGRPOTrainer(Trainer):
             if isinstance(reward_func, PreTrainedModel):
                 self.reward_funcs[i] = self.accelerator.prepare_model(reward_func, evaluation_mode=True)
 
+    # 下面的四个函数_set_signature_columns_if_needed、_get_per_token_logps、remove_none_from_data、_prepare_inputs都属于辅助函数
+    # 辅助函数
     def _set_signature_columns_if_needed(self):
         # If `self.args.remove_unused_columns` is True, non-signature columns are removed.
         # By default, this method sets `self._signature_columns` to the model's expected inputs.
@@ -363,6 +372,7 @@ class Qwen2VLGRPOTrainer(Trainer):
             self._signature_columns = ["prompt"]
 
 
+    # 辅助函数
     # Get the per-token log probabilities for the completions for the model and the reference model
     def _get_per_token_logps(self, model, input_ids, **kwargs):
         # logits = model(input_ids, attention_mask=attention_mask, pixel_values=pixel_values, image_grid_thw=image_grid_thw).logits  # (B, L, V)
@@ -379,6 +389,7 @@ class Qwen2VLGRPOTrainer(Trainer):
             per_token_logps.append(token_log_prob)
         return torch.stack(per_token_logps)
     
+    # 辅助函数
     def remove_none_from_data(self, data):
         for entry in data:
             if "content" in entry and isinstance(entry["content"], list):
@@ -392,31 +403,53 @@ class Qwen2VLGRPOTrainer(Trainer):
 
     # Trainer "prepares" the inputs before calling `compute_loss`. It converts to tensor and move to device.
     # Since we preprocess the data in `compute_loss`, we need to override this method to skip this step.
+    # 辅助函数
     def _prepare_inputs(self, inputs: dict[str, Union[torch.Tensor, Any]]) -> dict[str, Union[torch.Tensor, Any]]:
         return inputs
 
+    # 核心GRPO+temporal部分
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         if return_outputs:
             raise ValueError("The GRPOTrainer does not support returning outputs")
+        
+        # device = self.accelerator.device
+        
+        # # === 1. 初始化有效性权重 (默认有效) ===
+        # sample_weight = 1.0 
+        
+        # # 请确保这个文件真实存在！！
+        # fallback_video_path = "/data/wm/simple-subtitling/Processed_Dialogue/The_Twilight_Saga/video/1~4_NEW_fixed_videos/1d37ccbacf96f997_sub1_2.mp4"
     
         
 
+        # (1) 准备prompts & 文本版本
         prompts = [x["prompt"] for x in inputs]
         prompts_text = [maybe_apply_chat_template(example, self.processing_class)["prompt"] for example in inputs]
 
                 
         
+        # (2) 图像/视频处理 + 构造 Processor 输入
         input_copy = copy.deepcopy(inputs[0]['prompt'])
         
         input_copy = self.remove_none_from_data(input_copy)
         
+        current_video_path = "Unknown"
         if inputs[0]['data_type'] == 'image':
-            input_copy[0]['content'][0]['image'] = os.getcwd() + "/Video-R1-data" + inputs[0]['path'][1:] 
+            # input_copy[0]['content'][0]['image'] = os.getcwd() + "/Video-R1-data" + inputs[0]['path'][1:] 
+            input_copy[1]['content'][0]['image'] = inputs[0]['image_path']
         elif inputs[0]['data_type'] == 'video':
-            input_copy[0]['content'][0]['video'] = os.getcwd() + "/Video-R1-data" + inputs[0]['path'][1:] 
+            # input_copy[0]['content'][0]['video'] = os.getcwd() + "/Video-R1-data" + inputs[0]['path'][1:] 
+            current_video_path = inputs[0]['video_path']
+            input_copy[1]['content'][0]['video'] = inputs[0]['video_path']
             
         try:
             image_inputs, video_inputs, video_kwargs = process_vision_info(input_copy, return_video_kwargs=True)
+             
+            # # 二次检查：防止 process_vision_info 返回空但不报错
+            # if inputs[0]['data_type'] == 'video':
+            #     if video_inputs is None or (isinstance(video_inputs, list) and len(video_inputs) == 0):
+            #         raise ValueError("Read success but video_inputs is Empty")
+        
         except Exception as e:
             print(f"process_vision_info error, using fixed data, {e}")
             if inputs[0]['data_type'] == 'image':
@@ -425,8 +458,40 @@ class Qwen2VLGRPOTrainer(Trainer):
                 input_copy[0]['content'][0]['video'] = os.getcwd() + "/Video-R1-data" + '/LLaVA-Video-178K/liwei_youtube_videos/videos/youtube_video_2024/ytb_7nRmsEw7nsE.mp4'
                 
             image_inputs, video_inputs, video_kwargs = process_vision_info(input_copy, return_video_kwargs=True)
+
+            # ################# Modified Part #################
+            # # 标记为坏样本，权重置 0
+            # sample_weight = 0.0
+            # print(f"❌ [Rank {self.accelerator.process_index}] Bad Video: {current_video_path} | Err: {e}")
+                       
+            # log_path = "/data/wm/Video-R1/src/r1-v/src/open_r1/myself_grpo_training_bad_videos.txt"
+
+            # try:
+            #     with open(log_path, "a") as f:
+            #         f.write(f"{current_video_path}\n")
+            # except Exception as e_file: 
+            #     print(f"⚠️ Logging Failed! Could not write to {log_path}. Error: {e_file}")
+            # # ----------------------------------------
+            
+            # # 使用 fallback 视频（仅为了占位，不参与训练）
+            # if inputs[0]['data_type'] == 'video':
+            #     input_copy[1]['content'][0]['video'] = fallback_video_path
+            
+            # try:
+            #     image_inputs, video_inputs, video_kwargs = process_vision_info(input_copy, return_video_kwargs=True)
+            # except Exception as e2:
+            #     # 终极兜底：手动造假 Tensor 防止 Crash
+            #     print(f"Critical: Fallback failed! {e2}")
+            #     device = self.accelerator.device
+            #     if inputs[0]['data_type'] == 'video':
+            #         # 假设模型需要 [8, 3, 224, 224]，dtype跟模型一致
+            #         video_inputs = [torch.zeros((8, 3, 224, 224), device=device, dtype=model.dtype)]
+            #         video_kwargs = {"video_grid_thw": torch.tensor([[8, 224, 224]], device=device, dtype=torch.long)}
+            #     else:
+            #         video_inputs = None
+
         
-        
+        # 用 AutoProcessor 把文本+图像/视频打包成张量，再截断到 max_prompt_length：
         prompt_inputs = self.processing_class(
             text=copy.deepcopy(prompts_text),
             images=image_inputs,
@@ -453,6 +518,7 @@ class Qwen2VLGRPOTrainer(Trainer):
             prompt_ids = prompt_ids[:, -self.max_prompt_length :]
             prompt_mask = prompt_mask[:, -self.max_prompt_length :]
             
+        # (3) temporal：打乱视频帧版本（视频 & 开启temporal）：
         if self.temporal and video_inputs:
             indices = torch.randperm(video_inputs[0].size(0))
             shuffled_video_inputs = [video_inputs[0][indices]]
@@ -473,13 +539,18 @@ class Qwen2VLGRPOTrainer(Trainer):
         
         
         # Generate completions
+        # (4) 用模型 generate
         with unwrap_model_for_generation(model, self.accelerator) as unwrapped_model:
+            # prompt_completion_ids里包含了[prompt tokens][completion tokens]
             prompt_completion_ids = unwrapped_model.generate(**prompt_inputs, generation_config=self.generation_config)
+           
+            # 用prompt_length把它们拆成prompt_ids和completion_ids
             prompt_length = prompt_ids.size(1)
             prompt_ids = prompt_completion_ids[:, :prompt_length]
             completion_ids = prompt_completion_ids[:, prompt_length:]
             prompt_mask = prompt_mask.repeat_interleave(self.num_generations, dim=0)
             
+            # temporal 模式下还会为打乱时序的视频生成一份suffled_prompt_completion_ids
             if self.temporal:
                 
                 if video_inputs:
@@ -495,7 +566,8 @@ class Qwen2VLGRPOTrainer(Trainer):
                     shuffled_prompt_completion_ids = unwrapped_model.generate(**prompt_inputs, generation_config=self.dummy_generation_config)
 
         
-        print('path:', input_copy[0]['content'][0][inputs[0]['data_type']])   
+        # print('path:', input_copy[0]['content'][0][inputs[0]['data_type']])   
+        print('path:', input_copy[1]['content'][0][inputs[0]['data_type']])   
         print('problem_id:', inputs[0]['problem_id'])       
         print('prompt_length:', prompt_length)
                 
@@ -503,6 +575,7 @@ class Qwen2VLGRPOTrainer(Trainer):
         
         
         # Mask everything after the first EOS token
+        # (5) 计算completion_mask：根据第一个EOS的位置构造completion_mask，把EOS 之后的 token 屏蔽掉，避免无效的尾巴影响 loss / reward 等：
         is_eos = completion_ids == self.processing_class.eos_token_id
         device = self.accelerator.device
         eos_idx = torch.full((is_eos.size(0),), is_eos.size(1), dtype=torch.long, device=device)
@@ -517,6 +590,9 @@ class Qwen2VLGRPOTrainer(Trainer):
         
 
         
+        # (6) 为B*G复制视觉输入：
+        # 因为 generate 返回了B*G条序列，而原来的pixel_values只有B条（通常就是1）
+        # 这里通过repeat把视觉特征复制到每一个样本对应的行上，这样后面(7)中_get_per_token_logps在算logits时能对齐
         prompt_inputs.pop("input_ids")
         prompt_inputs.pop("attention_mask")
         
@@ -536,6 +612,10 @@ class Qwen2VLGRPOTrainer(Trainer):
         
         
         
+        # (7) 计算per_token_logps & ref_per_token_logps：
+        # 只保留completion部分的logp
+        # ref_model一般是初始模型、或者关闭adapter的版本
+
         try:
             per_token_logps = self._get_per_token_logps(model, prompt_completion_ids, **prompt_inputs)
             per_token_logps = per_token_logps[:, prompt_length - 1 :]
@@ -561,15 +641,19 @@ class Qwen2VLGRPOTrainer(Trainer):
 
         # Compute the KL divergence between the model and the reference model
         
+        # 然后计算per-token KL（这里是GRPO论文里的KL近似形式）：
         x_clamped = torch.clamp(ref_per_token_logps - per_token_logps, min=-10, max=10)  # 限制 x 的范围
         per_token_kl = torch.exp(x_clamped) - x_clamped - 1
         
+        # (8) temporal reward时序奖励：打乱 vs 原视频
         if self.temporal and video_inputs:
+            # (8-1)对打乱后的视频生成的completion，解码成shuffled_completions
             shuffled_completions = self.processing_class.batch_decode(shuffled_completion_ids, skip_special_tokens=True)
             if is_conversational(inputs[0]):
                 shuffled_completions = [[{"role": "assistant", "content": shuffled_completion}] for shuffled_completion in shuffled_completions]
                 
             # Compute the rewards
+            # (8-2)用reward_funcs分别算reward，得到shuffled_rewards_per_func：
             shuffled_prompts = [prompt for prompt in prompts for _ in range(self.shuffled_num_generations)]
             shuffled_rewards_per_func = torch.zeros(len(shuffled_prompts), len(self.reward_funcs), device=device)
             for i, (reward_func, reward_processing_class) in enumerate(
@@ -589,10 +673,12 @@ class Qwen2VLGRPOTrainer(Trainer):
         completions = self.processing_class.batch_decode(completion_ids, skip_special_tokens=True)
         if is_conversational(inputs[0]):
             completions = [[{"role": "assistant", "content": completion}] for completion in completions]
-            
+           
+        # (8-3)对原视频的completion做同样的rewards_per_func计算:
         # Compute the rewards
         prompts = [prompt for prompt in prompts for _ in range(self.num_generations)]
         rewards_per_func = torch.zeros(len(prompts), len(self.reward_funcs), device=device)
+                
         for i, (reward_func, reward_processing_class) in enumerate(
             zip(self.reward_funcs, self.reward_processing_classes)
         ):
@@ -604,11 +690,14 @@ class Qwen2VLGRPOTrainer(Trainer):
                     reward_kwargs[key].extend([example[key]] * self.num_generations)
             output_reward_func = reward_func(prompts=prompts, completions=completions, **reward_kwargs)
             rewards_per_func[:, i] = torch.tensor(output_reward_func, dtype=torch.float32, device=device)
-        
+    
 
-        
-        
+        # (8-4)对比两者的平均值：
         if self.temporal and video_inputs:
+            # 有时序和视频的情况：
+            # rewards_per_func[:,0] 是你主 reward（比如准确率）
+            # 如果原视频 reward 比 打乱视频 reward 差不多（>= 0.8 *），就给那些 reward>0.1 的样本再加 0.3 的奖励
+            # 这是 Video-R1 论文里“对比时序敏感度”的一部分设计
             temporal_rewards_per_func = rewards_per_func.clone()
             
             acc_mean = temporal_rewards_per_func[:, 0].mean()
@@ -621,15 +710,19 @@ class Qwen2VLGRPOTrainer(Trainer):
             else:
                 temporal_rewards = torch.tensor([0.0]).to('cuda')
         else:
+            # 无视频或无时序的情况：
+            # 注意这个 temporal_rewards 在非 temporal 情况下只用于 logging，不真正影响 rewards
             temporal_rewards =  torch.tensor([0.5]).to('cuda')
         
         # Sum the rewards from all reward functions
+        # (9) 合成最终的reward（含可选长度控制）：
         if self.temporal and video_inputs:
             rewards = temporal_rewards_per_func.sum(dim=1)
         else:
             rewards = rewards_per_func.sum(dim=1)
     
         
+        # (9-1)如果 len_control=True，就是给“reward 不太差且长度在 [320,512]” 的样本再加一点奖励，避免模型太短或者太长：
         if self.len_control:
             mem_rewards = [0] * self.num_generations
             mask = rewards_per_func[:, 0] > 0.1
@@ -656,11 +749,14 @@ class Qwen2VLGRPOTrainer(Trainer):
         print(rewards)
         print(completion_mask.sum(1))
 
+        # (10) GRPO 的advantage与loss：
         # Compute grouped-wise rewards
+        # (10-1) 将reward reshape成 (batch_size, G) 形式，得到每个样本（一组G）的均值和标准差：
         mean_grouped_rewards = rewards.view(-1, self.num_generations).mean(dim=1)
         std_grouped_rewards = rewards.view(-1, self.num_generations).std(dim=1)
 
         # Normalize the rewards to compute the advantages
+        # (10-2) 标准化成advantage：
         mean_grouped_rewards = mean_grouped_rewards.repeat_interleave(self.num_generations, dim=0)
         std_grouped_rewards = std_grouped_rewards.repeat_interleave(self.num_generations, dim=0)
         advantages = (rewards - mean_grouped_rewards) / (std_grouped_rewards + 1e-4)
@@ -670,11 +766,16 @@ class Qwen2VLGRPOTrainer(Trainer):
         #         advantages[idx] += (mem_rewards[idx] - 0.2) * 2
 
         # x - x.detach() allows for preserving gradients from x
+        # (10-3) per-token loss：
+        # 这就是GRPO论文里提出的，用exp(logp-logp_old)的形式把advantage和KL结合起来的Policy Gradient估计：
         per_token_loss = torch.exp(per_token_logps - per_token_logps.detach()) * advantages.unsqueeze(1)
         per_token_loss = -(per_token_loss - self.beta * per_token_kl)
         # per_token_loss = -per_token_loss
         loss = ((per_token_loss * completion_mask).sum(dim=1) / completion_mask.sum(dim=1)).mean()
        
+    #    # === 【修改 】应用 Loss Masking ===
+    #     # 如果 sample_weight 是 0，loss 变为 0，梯度也为 0 (不训练坏数据)
+    #     loss = loss * sample_weight
             
         # import pdb
         # pdb.set_trace()
@@ -691,18 +792,126 @@ class Qwen2VLGRPOTrainer(Trainer):
                 reward_func_name = reward_func.__name__
             self._metrics[f"rewards/{reward_func_name}"].append(reward_per_func[i].item())
         
-        gathered_rewards = self.accelerator.gather_for_metrics(rewards)
+        # gathered_rewards = self.accelerator.gather_for_metrics(rewards)
         
-        num_devices = gathered_rewards.size(0) // self.num_generations 
-        rewards_per_device = gathered_rewards.view(num_devices, self.num_generations)
-        wrong_devices = (rewards_per_device <= 1).all(dim=1)
-        wrong_ratio = wrong_devices.sum().item() / num_devices
+        # num_devices = gathered_rewards.size(0) // self.num_generations 
+        # rewards_per_device = gathered_rewards.view(num_devices, self.num_generations)
+        # wrong_devices = (rewards_per_device <= 1).all(dim=1)
+        # wrong_ratio = wrong_devices.sum().item() / num_devices
         
-        correct_devices = (rewards_per_device >= 2).all(dim=1)
-        correct_ratio = correct_devices.sum().item() / num_devices
+        # correct_devices = (rewards_per_device >= 2).all(dim=1)
+        # correct_ratio = correct_devices.sum().item() / num_devices
         
-        self._metrics["all_wrong"].append(wrong_ratio)
-        self._metrics["all_correct"].append(correct_ratio)
+        # self._metrics["all_wrong"].append(wrong_ratio)
+        # self._metrics["all_correct"].append(correct_ratio)
+        
+        
+        # ==============================================================================
+        from datetime import datetime
+        import torch.distributed as dist  # <--- 引入这个
+
+        # ------------------------------------------------------------------
+        # 步骤 1: 【无条件执行】收集所有 Rank 的视频路径
+        # ------------------------------------------------------------------
+        try:
+            # 根据 inputs 结构获取路径
+            local_path_info = inputs[0].get("video_path", f"Rank_{self.accelerator.process_index}_NoPathKey")
+        except:
+            local_path_info = f"Rank_{self.accelerator.process_index}_ExtractError"
+
+        # 【修复点】：用 PyTorch 原生方法替代 accelerator.gather_object
+        # 先创建一个空列表用来接收所有 GPU 的数据
+        all_video_paths_list = [None for _ in range(self.accelerator.num_processes)]
+        try:
+            # 执行全员集合通信
+            dist.all_gather_object(all_video_paths_list, local_path_info)
+        except Exception as e:
+            # 万一分布式环境没初始化好，回退到只记录自己
+            all_video_paths_list = [f"GatherFailed_Rank{self.accelerator.process_index}_{local_path_info}"]
+
+        # ------------------------------------------------------------------
+        # 步骤 2: 【双重 Gather】获取 Metrics 版和 Raw 版数据
+        # ------------------------------------------------------------------
+        # A. 用于 Metrics 计算的结果
+        gathered_for_metrics = self.accelerator.gather_for_metrics(rewards)
+        
+        # B. 原始 Gather 结果
+        gathered_raw = self.accelerator.gather(rewards)
+
+        # ------------------------------------------------------------------
+        # 步骤 3: 【双重检查】判断是否触发 Bad Case
+        # ------------------------------------------------------------------
+        expected_group = self.num_generations  # 例如 8
+        badcase_trigger = False
+
+        # 检查逻辑 A
+        size_metrics = gathered_for_metrics.size(0)
+        if size_metrics == 0 or size_metrics % expected_group != 0:
+            badcase_trigger = True
+            
+        # 检查逻辑 B
+        size_raw = gathered_raw.size(0)
+        if size_raw == 0 or size_raw % expected_group != 0:
+            badcase_trigger = True
+
+        # ------------------------------------------------------------------
+        # 步骤 4: 【日志落盘】
+        # ------------------------------------------------------------------
+        if badcase_trigger and self.accelerator.is_main_process:
+            log_file = "/data/wm/Video-R1/src/r1-v/src/open_r1/debug_log/debug_stop_reason_NEW_BERTScore_Clip.txt"
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            try:
+                os.makedirs(os.path.dirname(log_file), exist_ok=True)
+                with open(log_file, "a", encoding="utf-8") as f:
+                    f.write("\n" + "!" * 80 + "\n")
+                    f.write(f"[{now}] 🚨 BADCASE CAPTURED 🚨\n")
+                    f.write(f"Expected group size: {expected_group}\n")
+                    f.write(f"Trigger: metrics_size={size_metrics} OR raw_size={size_raw} mismatch.\n\n")
+                    
+                    f.write("=== 1. 🕵️‍♀️ Suspects (What each GPU was processing) ===\n")
+                    # 这里会列出所有 GPU 的视频路径
+                    for rank_idx, v_path in enumerate(all_video_paths_list):
+                        f.write(f"[Rank {rank_idx}]: {v_path}\n")
+                    
+                    f.write("\n=== 2. gathered_for_metrics ===\n")
+                    f.write(f"Shape: {gathered_for_metrics.shape}\n")
+                    
+                    f.write("\n=== 3. gathered_raw ===\n")
+                    f.write(f"Shape: {gathered_raw.shape}\n")
+                    f.write("!" * 80 + "\n")
+                
+                print(f"🔥 [Debug] Log written to {log_file}")
+            except Exception as e:
+                print(f"🔥 [Debug] Failed to write log: {e}")
+                
+        ################### Modified Part ###################
+        # === 【修改 】安全的 Metrics 统计 ===
+        # 使用 gather 而不是 gather_for_metrics，防止 drop 导致数量不对
+        gathered_rewards = self.accelerator.gather(rewards)
+        
+        total_samples = gathered_rewards.numel()
+        
+        # 只有当数量对齐时才计算，否则跳过日志（但不中断训练）
+        if total_samples > 0 and total_samples % self.num_generations == 0:
+            actual_num_devices = total_samples // self.num_generations
+            try:
+                rewards_per_device = gathered_rewards.view(actual_num_devices, self.num_generations)
+                
+                # 注意：这里的判断标准 (<=1 或 >=2) 请根据你的 reward 函数逻辑调整
+                wrong_devices = (rewards_per_device <= 1).all(dim=1) # 检查每个gpu中一组G是否都<=1
+                wrong_ratio = wrong_devices.float().mean().item()
+                
+                correct_devices = (rewards_per_device >= 2).all(dim=1)
+                correct_ratio = correct_devices.float().mean().item()
+                
+                self._metrics["all_wrong"].append(wrong_ratio)
+                self._metrics["all_correct"].append(correct_ratio)
+            except Exception as e:
+                print(f"Metric View Error: {e}")
+        else:
+            pass
+
         
         if self.temporal:
             temporal_rewards_list = self.accelerator.gather_for_metrics(temporal_rewards)

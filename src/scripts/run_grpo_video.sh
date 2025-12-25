@@ -8,14 +8,14 @@ export LOG_PATH="./debug_log_2b.txt"
 
 # Qwen/Qwen2.5-VL-7B-Instruct
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node="4" \
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 torchrun --nproc_per_node="8" \
     --nnodes="1" \
     --node_rank="0" \
     --master_addr="127.0.0.1" \
     --master_port="12365" \
     src/open_r1/grpo.py \
     --output_dir "./log/Qwen2.5-VL-7B-GRPO" \
-    --model_name_or_path 'SFT Model Path' \
+    --model_name_or_path '/data/wm/Video-R1/src/r1-v/log/Qwen2.5-VL-7B-Video-7B-cot-sft-2' \
     --dataset_name "./Video-R1-data/Video-R1-260k.json" \
     --deepspeed local_scripts/zero3.json \
     --max_prompt_length 16384 \
@@ -25,7 +25,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node="4" \
     --learning_rate 1e-6 \
     --lr_scheduler_type "cosine" \
     --weight_decay 0.01 \
-    --bf16 \
+    --bf16 True\
     --logging_steps 1 \
     --gradient_checkpointing true \
     --temporal true \
@@ -33,7 +33,8 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node="4" \
     --attn_implementation flash_attention_2 \
     --max_pixels 401408 \
     --num_train_epochs 1 \
-    --run_name Video-R1 \
+    --max_steps 1500 \
+    --run_name Video-R1-GRPO \
     --save_steps 100 \
     --beta 0.04 \
     --max_grad_norm 5 \

@@ -1,4 +1,5 @@
-from .grpo_trainer import Qwen2VLGRPOTrainer
+# from .grpo_trainer import Qwen2VLGRPOTrainer
+from .myself_trainer import Qwen2VLGRPOTrainer
 from .vllm_grpo_trainer_modified import Qwen2VLGRPOVLLMTrainerModified
 
 __all__ = [

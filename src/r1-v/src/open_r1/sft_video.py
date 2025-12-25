@@ -57,6 +57,8 @@ from datasets import Dataset, DatasetDict
 import wandb
 
 from typing import List, Dict, Any
+import pdb
+acc = Accelerator()
 
 def get_current_device():
     """Get the current device. For GPU we return the local process index to enable multiple GPU training."""
@@ -150,6 +152,9 @@ def collate_fn(examples: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
     # video_inputs = []
     # image_inputs = []
 
+    # if acc.is_main_process:
+    #     import pdb; pdb.set_trace()
+
     for i, example in enumerate(examples):
         try:
 
@@ -184,6 +189,10 @@ def collate_fn(examples: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
 if __name__ == "__main__":
     # Parse arguments
     parser = TrlParser((ScriptArguments, SFTConfig, ModelConfig))
+
+    # if acc.is_main_process:
+    #     import pdb; pdb.set_trace()
+
     script_args, training_args, model_config = parser.parse_args_and_config()
     
     # Configure training args
@@ -234,6 +243,9 @@ if __name__ == "__main__":
         model_config.model_name_or_path,
         trust_remote_code=model_config.trust_remote_code
     )
+
+    # if acc.is_main_process:
+    #     import pdb; pdb.set_trace()
 
     # Prepare dataset
     prepared_dataset = [prepare_dataset(example) for example in dataset['train']]

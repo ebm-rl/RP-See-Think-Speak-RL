@@ -7,21 +7,24 @@ export DEBUG_MODE="true"
 export LOG_PATH="./vllm_run.txt"
 
 
-QWEN_PATH='SFT Model Path'
+# QWEN_PATH='SFT Model Path'
+QWEN_PATH='/data/wm/Video-R1/src/r1-v/log/Qwen2.5-VL-7B-Video-7B-cot-sft-2'
 HF_DATASET="./Video-R1-data/Video-R1-260k.json"
-OUTPUT_DIR="./log/Qwen2.5-VL-7B-Video-GRPO"
+# OUTPUT_DIR="./log/Qwen2.5-VL-7B-Video-GRPO"
+OUTPUT_DIR="./log/Qwen2.5-VL-7B-Video-GRPO-vllm"
 if [ ! -d "$OUTPUT_DIR" ]; then
  mkdir -p "$OUTPUT_DIR"
 fi
-RUN_NAME="Qwen2.5-VL-7B-Video-GRPO"
+# RUN_NAME="Qwen2.5-VL-7B-Video-GRPO"
+RUN_NAME="Qwen2.5-VL-7B-Video-GRPO-vllm"
 DS_CONFIG="local_scripts/zero3.json"  
 
 # Set temporal to choose between T-GRPO and GRPO, and len_control to enable or disable the length control reward.
 # NOTE: you are expected to use X + 1 cards for X training proc and 1 vLLM proc 
 # e.g., the visible devices should be 0,1,2,3,4 for 5 cards, and  --nproc_per_node="4"
 
-CUDA_VISIBLE_DEVICES="0,1,2,3,4" torchrun \
-    --nproc_per_node="4" \
+CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6,7" torchrun \
+    --nproc_per_node="8" \
     --nnodes="1" \
     --node_rank="0" \
     --master_addr="127.0.0.1" \

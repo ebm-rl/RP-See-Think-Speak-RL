@@ -4,7 +4,7 @@ export DEBUG_MODE="true" # Enable Debug if you want to see the rollout of model 
 export LOG_PATH="./debug_log_2b.txt"
 
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node="4" \
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 torchrun --nproc_per_node="8" \
     --nnodes="1" \
     --node_rank="0" \
     --master_addr="127.0.0.1" \
@@ -18,7 +18,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node="4" \
     --gradient_accumulation_steps 2 \
     --learning_rate 1e-6 \
     --logging_steps 1 \
-    --bf16 \
+    --bf16 True\
     --report_to wandb \
     --gradient_checkpointing true \
     --attn_implementation flash_attention_2 \
