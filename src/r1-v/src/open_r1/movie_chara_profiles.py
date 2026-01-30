@@ -1,10 +1,8 @@
-# movie_character_profiles.py
-# 按影片名（data_source）组织人物：atmosphere / main / sub
+# Organize characters by video title (data_source): atmosphere / main / sub
 
 from __future__ import annotations
 from typing import Dict, Any, Optional, Tuple
 
-# 可选：把一些“跨影片通用”的角色（如 user_fan）放这里做兜底
 GLOBAL_USER_PROFILES: Dict[str, Dict[str, Any]] = {
     "user_fan": {
         "personality": (
@@ -1217,7 +1215,7 @@ MOVIE_PROFILE_DB: Dict[str, Dict[str, Any]] = {
             "Arwen": {
                 "personality": "Calm, compassionate, resolute. Speaks softly but with unwavering conviction.",
                 "catchphrases": ["I do not fear them.", "If you want him, come and claim him."],
-                "relationships": "深爱 Aragorn; allied with Elrond’s house.",
+                "relationships": "Deeply in love with Aragorn; allied with Elrond’s house.",
                 "background": "Elven princess of Rivendell who chooses a mortal fate for love."
             },
             "Boromir": {
