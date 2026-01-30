@@ -44,9 +44,9 @@ bash ./src/scripts/EBM_RP_RL.sh
 ```
 Please note the following configurations for the CLIP-based Scene–Text Alignment Reward module:
 
-* **CLIP-MAX Method**: Replace the reward calculation script with `src/open_r1/clip_MAX_server.py`.
+* **CLIP-MAX Method**: Replace the reward calculation script with [`src/open_r1/clip_MAX_server.py`](.src/open_r1/clip_MAX_server.py).
 
-* **CLIP-SentTopK Method**: Replace the reward calculation script with `src/open_r1/clip_Topk_server.py`.
+* **CLIP-SentTopK Method**: Replace the reward calculation script with [`src/open_r1/clip_Topk_server.py`](.src/open_r1/clip_Topk_server.py).
 
 ## 📈 RL Training Curves
 The following curves demonstrate the performance of the three core reward components during the EBM-RL phase: CLIP-based Alignment,PCG-based Reasoning Consistency and BERTScore-based Accuracy.
