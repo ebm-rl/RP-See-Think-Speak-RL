@@ -36,6 +36,8 @@ bash ./src/scripts/RP_COT_SFT.sh
 ```
 
 ### Stage-2: "See-Think-Speak" RL(GRPO) phase
+To optimize the training efficiency of the EBM-RL framework, we pre-calculate visual features for all video frames using [`src/r1-v/src/open_r1/preprocess_rl_video_clip.py`](./src/r1-v/src/open_r1/preprocess_rl_video_clip.py). These embeddings are essential for computing the CLIP-based Scene–Text Alignment Reward during the reinforcement learning phase.
+
 To initiate the Reinforcement Learning (RL) training, execute the provided script below. The core EBM-RL training logic is implemented in [`src/r1-v/src/open_r1/RP_RL.py`](./src/r1-v/src/open_r1/RP_RL.py).
 
 ```bash
