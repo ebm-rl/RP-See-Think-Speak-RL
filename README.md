@@ -23,4 +23,14 @@ bash ./src/scripts/EBM_RP_RL.sh
 
 The following curves demonstrate the performance of the three core reward components during the EBM-RL phase: CLIP-based Alignment,PCG-based Reasoning Consistency and BERTScore-based Accuracy.
 
-<p align="center"> <img src="./images/clip_max.svg" width="32%" alt="CLIP Reward Curve" /> <img src="./images/pcg.svg" width="32%" alt="PCG Reward Curve" /> <img src="./images/bertscore.svg" width="32%" alt="BERTScore Reward Curve" /> </p>
+<table align="center">
+  <tr>
+    <td align="center"><img src="./images/clip_max.png" width="100%" alt="CLIP Reward Curve" /><br /><b>CLIP Reward</b></td>
+    <td align="center"><img src="./images/pcg.png" width="100%" alt="PCG Reward Curve" /><br /><b>PCG Reward</b></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <img src="./images/bertscore.png" width="45%" alt="BERTScore Reward Curve" /><br /><b>BERTScore Reward</b>
+    </td>
+  </tr>
+</table>
