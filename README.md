@@ -36,16 +36,17 @@ bash ./src/scripts/RP_COT_SFT.sh
 ```
 
 ### Stage-2: "See-Think-Speak" RL(GRPO) phase
-To initiate the Reinforcement Learning (RL) training, execute the provided script below. Please note the following configurations for the CLIP-based Scene–Text Alignment Reward module:
-
-* **CLIP-MAX Method**: Replace the reward calculation script with `src/open_r1/clip_MAX_server.py`.
-
-* **CLIP-SentTopK Method**: Replace the reward calculation script with `src/open_r1/clip_Topk_server.py`.
+To initiate the Reinforcement Learning (RL) training, execute the provided script below. The core EBM-RL training logic is implemented in [`src/r1-v/src/open_r1/RP_RL.py`](./src/r1-v/src/open_r1/RP_RL.py).
 
 ```bash
 # Launch script for the EBM-RL phase
 bash ./src/scripts/EBM_RP_RL.sh
 ```
+Please note the following configurations for the CLIP-based Scene–Text Alignment Reward module:
+
+* **CLIP-MAX Method**: Replace the reward calculation script with `src/open_r1/clip_MAX_server.py`.
+
+* **CLIP-SentTopK Method**: Replace the reward calculation script with `src/open_r1/clip_Topk_server.py`.
 
 ## 📈 RL Training Curves
 The following curves demonstrate the performance of the three core reward components during the EBM-RL phase: CLIP-based Alignment,PCG-based Reasoning Consistency and BERTScore-based Accuracy.
