@@ -1,4 +1,0 @@
-/data/wm/Video-R1/RP-EBM-Dataset/rl-train.json filter=lfs diff=lfs merge=lfs -text
-/data/wm/Video-R1/RP-EBM-Dataset/cot.json filter=lfs diff=lfs merge=lfs -text
-/data/wm/Video-R1/RP-EBM-Dataset/teat.json filter=lfs diff=lfs merge=lfs -text
-/data/wm/Video-R1/RP-EBM-Dataset/test.json filter=lfs diff=lfs merge=lfs -text
