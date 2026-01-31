@@ -56,20 +56,19 @@ The following curves demonstrate the performance of the three core reward compon
 <table align="center" cellspacing="0" cellpadding="0" style="border-collapse: collapse;">
   <tr>
     <td align="center" valign="bottom" style="padding: 0;">
-      <img src="./images/clip_max.png" height="140" style="display: block;" alt="CLIP Reward Curve" />
+      <img src="images/clip_max.png" height="140" style="display: block;" alt="CLIP Reward Curve" />
       <br /><b>CLIP Reward</b>
     </td>
     <td align="center" valign="bottom" style="padding: 0;">
-      <img src="./images/pcg.png" height="140" style="display: block;" alt="PCG Reward Curve" />
+      <img src="images/pcg.png" height="140" style="display: block;" alt="PCG Reward Curve" />
       <br /><b>PCG Reward</b>
     </td>
     <td align="center" valign="bottom" style="padding: 0;">
-      <img src="./images/bertscore.png" height="140" style="display: block;" alt="BERTScore Reward Curve" />
+      <img src="images/bertscore.png" height="140" style="display: block;" alt="BERTScore Reward Curve" />
       <br /><b>BERTScore Reward</b>
     </td>
   </tr>
 </table>
-
 
 ## 📊 Inference and Metric Evaluation for Immersive-Video-RP
 After completing the RL training, you can perform inference using the trained model checkpoint to verify the performance.
