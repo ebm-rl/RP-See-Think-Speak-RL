@@ -1,5 +1,13 @@
 # Code for [Reward-Decomposed Reinforcement Learning for Immersive Video Role-Playing]
 
+## 🗂️ Dataset: 
+https://huggingface.co/datasets/ebm-rl/ebm-role-play-dataset/tree/main
+
+## 🤖 Model:
+* SFT cold-start model: https://huggingface.co/ebm-rl/rp-ebm-cot-start-sft/tree/main
+* Look-Think-Speak ebm-rl model: https://huggingface.co/ebm-rl/rp-ebm/tree/main
+
+
 ## 🛠️ Environment Setup
 
 This project is developed within the `ebm-rl` environment. To ensure consistent results, please follow the setup instructions below.
@@ -83,6 +91,10 @@ bash ./src/RP_Inference_and_rate/RP_inference.sh
 ### Evaluation
 After completing the inference phase for all candidate models, use the automated critic system to perform comparison. This phase leverages a strong LLM as a judge to provide both quantitative scores and qualitative justifications.
 
+<p align="center">
+  <img src="images/f1.png" alt="Evaluation" width="480">
+</p>
+
 #### Evaluation Methodology:
 To ensure absolute objectivity and prevent "model-name bias" during the judging process, our framework employs a Masked Identity Mechanism:
 
@@ -115,3 +127,19 @@ python Immersive-Video-RP-evaluate.py \
   --video_base_dir ../../../simple-subtitling/Processed_Dialogue/RP-EBM-Dataset \
   --limit 1500
   ```
+
+## 🌐 Generalization
+We run **three zero-shot out-of-domain** VideoQA evaluations without any further fine-tuning: **NExT-QA** (real-world daily activities), **PororoQA** (animated narrative videos), and **ActivityNet-QA** (open-web long videos; evaluated on the yes/no subset).
+
+All generalization validation code and corresponding inference results are stored in [`src/RP_Inference_and_rate/Generalization`](./src/RP_Inference_and_rate/Generalization).
+
+<p align="center">
+  <img src="images/generalization.png" alt="generalization" width="480">
+</p>
+
+These fully zero-shot results suggest that our See-Think-Speak (EBM) framework is not restricted to role-playing scenarios. Instead, it improves visually grounded reasoning and remains robust under substantial domain shift, including transfer from live-action movie scenes to animation and open-web videos.
+
+```bash
+# Launch generalization for our role-play ebm model
+bash ./src/RP_Inference_and_rate/Generalization/ActivityNetQA/infer_acti.sh
+```
