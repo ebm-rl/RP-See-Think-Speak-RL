@@ -92,7 +92,7 @@ bash ./src/RP_Inference_and_rate/RP_inference.sh
 After completing the inference phase for all candidate models, use the automated critic system to perform comparison. This phase leverages a strong LLM as a judge to provide both quantitative scores and qualitative justifications.
 
 <p align="center">
-  <img src="images/f1.png" alt="Evaluation" width="480">
+  <img src="images/f1.png" alt="Evaluation" width="560">
 </p>
 
 #### Evaluation Methodology:
@@ -134,7 +134,7 @@ We run **three zero-shot out-of-domain** VideoQA evaluations without any further
 All generalization validation code and corresponding inference results are stored in [`src/RP_Inference_and_rate/Generalization`](./src/RP_Inference_and_rate/Generalization).
 
 <p align="center">
-  <img src="images/generalization.png" alt="generalization" width="480">
+  <img src="images/generalization.png" alt="generalization" width="560">
 </p>
 
 These fully zero-shot results suggest that our See-Think-Speak (EBM) framework is not restricted to role-playing scenarios. Instead, it improves visually grounded reasoning and remains robust under substantial domain shift, including transfer from live-action movie scenes to animation and open-web videos.
