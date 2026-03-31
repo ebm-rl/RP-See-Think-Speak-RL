@@ -1,12 +1,11 @@
 # Code for [Reward-Decomposed Reinforcement Learning for Immersive Video Role-Playing]
 
 ## 🗂️ Dataset: 
-https://huggingface.co/datasets/ebm-rl/ebm-role-play-dataset/tree/main
+👉 [ebm-role-play-dataset](https://huggingface.co/datasets/ebm-rl/ebm-role-play-dataset/tree/main).
 
 ## 🤖 Model:
-* SFT cold-start model: https://huggingface.co/ebm-rl/rp-ebm-cot-start-sft/tree/main
-* Look-Think-Speak ebm-rl model: https://huggingface.co/ebm-rl/rp-ebm/tree/main
-
+* SFT cold-start model👉: [ebm-sft](https://huggingface.co/ebm-rl/rp-ebm-cot-start-sft/tree/main).
+* Look-Think-Speak ebm-rl model👉: [ebm-rl](https://huggingface.co/ebm-rl/rp-ebm/tree/main).
 
 ## 🛠️ Environment Setup
 
