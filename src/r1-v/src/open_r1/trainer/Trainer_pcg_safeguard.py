@@ -328,7 +328,7 @@ class Qwen2VLNoPCGleakGRPOTrainer(Trainer):
             PEFT configuration used to wrap the model. If `None`, the model is not wrapped.
     """
     
-    PCG_SIMILARITY_TAU = 0.2
+    PCG_SIMILARITY_TAU = 0.4
     
     def __init__(
         self,
