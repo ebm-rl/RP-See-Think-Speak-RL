@@ -24,7 +24,7 @@ pip install -r requirements.txt
 ## 🏗️ Dataset Construction
 The construction of the Immersive-Video-RP dataset involves two main phases: Sample Generation from Original Movie Dialogues (Script-Grounded) and LLM-Augmented Dialogue Expansion.
 
-To ensure clarity and maintainability, the dataset construction tools are managed in a separate repository. For the detailed implementation of the data generation and augmentation pipeline, please refer to our dedicated repository: 👉 [Dataset Construction Toolkit](https://anonymous.4open.science/r/Generate-Immersive-RP-video-dataset-Tool).
+To ensure clarity and maintainability, the dataset construction tools are managed in a separate repository. For the detailed implementation of the data generation and augmentation pipeline, please refer to our dedicated repository: 👉 [Dataset Construction Toolkit](https://github.com/wmWangmiao/RP-dataset-Tool).
 
 This specialized toolkit includes:
 * Script-Grounded Sample Generation: The core logic for extracting and aligning high-quality dialogue snippets from raw movie scripts and video segments.
